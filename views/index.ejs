@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="style.css">
+    <script type="text/javascript" src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript">
+    $(document).ready(function(){
+        $('#chat_window').hide();
+        $('#fight').hide();
+        $('#test_your_might').hide();
+        $('#message_form').hide();
+        $('#fight_picker').hide();
+        var socket = io();
+        var user = prompt('Please enter your name to chat')
+        if(user != null){
+            $('#chat_window').show();
+            $('#fight').show();
+            $('#message_form').show();
+
+            socket.emit('sign-in', {user:user})
+        }
+        
+        $('#send_btn').submit(function(event){
+            event.preventDefault();
+            var new_message ={
+            message: $('#message').val(),
+            name: user
+            }
+            console.log(new_message)
+            $('#message').val('')
+            socket.emit('new_message', {new_message : new_message})
+        });
+        $('#match_listing').submit(function(event){
+            event.preventDefault();
+            $('#match').val();
+            socket.emit('challenge', {opponent:$('#match').val(), fighter_id:$('#fighter_select').val()})
+        })
+        $('#strike').click(function(){
+            socket.emit('strike')
+        })
+        $('#block').click(function(){
+            socket.emit('defend')
+        })
+        $('#feign').click(function(){
+            socket.emit('feign')
+        })
+        $('#break').click(function(){
+            socket.emit('break')
+        })
+        $('#recover').click(function(){
+            socket.emit('heal')
+        })
+        socket.on('return', function(data){
+
+            for(x in data.messages){
+            $('.chat_header').append(`<p>${data.messages[x].name}: ${data.messages[x].message}</p>`)
+            }
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        socket.on('latest_message', function(data){
+            
+            $('.chat_header').append(`<p>${data.latest_message.name}: ${data.latest_message.message}</p>`)
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        
+        $('#fight').click(function(){
+            $('#join_the_fight').hide();
+            $('#test_your_might').show();
+            $('#fight_picker').show();
+            name = user;
+            socket.emit('new_challenger', {name:name})
+        });
+        
+        
+        socket.on('challenged', function(data){
+            $('.chat_header').append(`<p>${data.user.name} has challenged ${data.opponent.name} to a fight!`)
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        socket.on('stunned', function(data){
+            $('.chat_header').append(`<p>${data.user.alert}</p>`)
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        socket.on('opponent_stunned', function(data){
+            $('.chat_header').append(`<p>${data.user.name} is stunned.</p>`)
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        socket.on('attack', function(data){
+            console.log(data.user, data.opponent)
+            if(data.user.status == 1){
+            $('.chat_header').append(`<p class="text-danger">${data.user.name} strikes ${data.opponent.name} for 10 damage!`)
+            $('.chat_header').append(`<p>${data.user.name}: ${data.user.health}`)
+            $('.chat_header').append(`<p>${data.opponent.name}: ${data.opponent.health}`)
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+            }
+            else if(data.user.status == 2){
+                $('.chat_header').append(`<p class="text-info">${data.opponent.name} blocks ${data.user.name}'s attack!`)
+                $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+            }
+        })
+        socket.on('block_up', function(data){
+                $('.chat_header').append(`<p class="text-success">${data.user.name} goes into a defensive stance!`)
+                $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        socket.on('guard_break', function(data){
+            if(data.opponent.block == true){
+            $('.chat_header').append(`<p>${data.user.name} breaks through ${data.opponent.name}'s defenses!`)
+            }
+            else{
+            $('.chat_header').append(`<p class="text-warning">${data.user.name} loses balance and is stunned!`)
+            }
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        socket.on('recovered', function(data){
+            $('.chat_header').append(`<p class="text-primary">${data.user.name} recovers!`)
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        socket.on('game_over', function(data){
+            $('.chat_header').append(`<p class="text-primary">${data.user.name} is victorious over ${data.opponent.name}!`)
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        socket.on("InvalidFight", function(){
+            $('.chat_header').append(`<p class="text-dark">Please register to fight! Select a fighter and an opponent from the dropdowns below.</p>`)
+            $('#chat_window').scrollTop($('#chat_window')[0].scrollHeight - $('#chat_window')[0].clientHeight);
+        })
+        
+    });
+    </script>
+</head>
+<body class="bg-secondary">
+    
+    <div class="container">
+        <div class="row">
+        <div id="chat_window" class=" jumbotron bg-light col-6 mx-auto">
+            <div class="chat_header"></div>
+        </div>
+        </div>
+        <div class="row">
+            <div id='message_form' class="mx-auto col-7">
+            <form id='send_btn'>
+                <input type="text" class="form-control col-8 d-inline-block" value="" id="message"><!--
+             --><input type="submit" class="btn btn-info text-dark col-3 form-control d-inline-block" value="Send">
+            </form>
+        </div>
+        </div>
+        <hr class="my-3 bg-danger col-8">
+        <div class="row">
+                <div class="col-4 mx-auto" id="join_the_fight">
+                    <button id="fight" class="btn btn-danger text-dark mx-auto w-100" >Join the fight!</button>
+                </div>
+                <div id="test_your_might" class="mx-auto col-8">
+                    <div class="col-2"></div><!--
+                 --><button id="strike" class="btn btn-danger text-dark col-2">Strike!</button><!--  
+                 --><button id="block" class="btn btn-primary text-light col-2">Block!</button><!--
+                 --><button id="feign" class="btn btn-info text-light col-2">Feign!</button><!--  
+                 --><button id="break" class="btn btn-warning text-dark col-2">Break!</button><!--  
+                 --><button id="recover" class="btn btn-success text-light col-2">Recover!</button>
+                </div>
+            </div>
+            <hr class="bg-primary my-2 col-8">
+        <div class="row">
+            <div id="fight_picker" class="col-6 mx-auto">
+                
+                <form id="match_listing">
+                    <p class="lead fighter-select">Select your fighter!</p>
+                    <select id="fighter_select" class="form-control col-8 d-inline-block">
+                        <option id="match_header" disabled>Select fighter</option>
+                        <option value="0">Ryu</option>
+                        <option value="1">Ken</option>
+                        <option value="2">Necalli</option>
+                        <option value="3">Laura</option>
+                        <option value="4">Cammy</option>
+                        <option value="5">Bison</option>
+                    </select>
+                    <hr class="bg-primary my-2">
+                    <p class="lead enemy-select">Select your opponent!</p>
+                    <select id="match" class="form-control col-8">
+                        <option id="match_header" disabled>Select opponent</option>
+                        <option value="0">Ryu</option>
+                        <option value="1">Ken</option>
+                        <option value="2">Necalli</option>
+                        <option value="3">Laura</option>
+                        <option value="4">Cammy</option>
+                        <option value="5">Bison</option>
+                    </select>
+                    <hr class="bg-primary my-2">
+                    <input type="submit" class="btn btn-info col-8" value="Fight!">
+                </form>
+
+                <hr class="bg-primary my-3">
+            </div>
+        </div>
+        
+        <hr class="bg-primary my-5">
+    
+    
+    </div>
+</body>
+</html>

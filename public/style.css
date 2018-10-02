@@ -1,0 +1,20 @@
+#chat_window{
+    height:500px;
+    background-color: aliceblue;
+    margin-top:100px;
+    overflow: auto;
+}
+#message{
+    margin-left:1.8rem;
+
+}
+
+.enemy-select{
+    font-weight: bolder;
+    color: darkred;
+}
+
+.fighter-select{
+    font-weight: bolder;
+    color: darkgreen;
+}
